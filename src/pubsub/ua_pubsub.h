@@ -195,6 +195,7 @@ typedef struct UA_DataSetReader {
     /* This flag is 'read only' and is set internally based on the PubSub state. */
     UA_Boolean configurationFrozen;
     UA_NetworkMessageOffsetBuffer bufferedMessage;
+    UA_Duration tSinceLastMsg; /* TODO */
 }UA_DataSetReader;
 
 /* Process Network Message using DataSetReader */
