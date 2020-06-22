@@ -157,6 +157,14 @@ typedef union {
 UA_Boolean UA_EXPORT
 UA_String_equal_ignorecase(const UA_String *s1, const UA_String *s2);
 
+/* Calculate gcd of 2 numbers */
+UA_StatusCode 
+gcd(const UA_UInt32 a, const UA_UInt32 b, UA_UInt32 *gcdValue);
+
+/* Calculate gcd of an array */
+UA_StatusCode 
+gcd_arr(const UA_UInt32 * const arr, const UA_UInt32 size, UA_UInt32 *gcdValue);
+
 _UA_END_DECLS
 
 #endif /* UA_UTIL_H_ */

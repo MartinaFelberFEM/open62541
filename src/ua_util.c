@@ -297,3 +297,37 @@ UA_NodeId_print(const UA_NodeId *id, UA_String *output) {
 
     return UA_STATUSCODE_GOOD;
 }
+
+static UA_UInt32 
+gcd_calc (const UA_UInt32 a, const UA_UInt32 b) {
+    if (b == 0) {
+        return a;
+    }
+    return gcd_calc(b, a % b);
+}
+
+UA_StatusCode 
+gcd(const UA_UInt32 a, const UA_UInt32 b, UA_UInt32 *gcdValue) {
+    if ((a == 0) || (b == 0)) {
+		return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    *gcdValue = gcd_calc(a, b);
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode 
+gcd_arr(const UA_UInt32 * const arr, const UA_UInt32 size, UA_UInt32 *gcdValue) {
+    if ((!arr) || (!gcdValue) || (size < 1)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode uStatus = UA_STATUSCODE_GOOD;
+    *gcdValue = arr[0];
+    for(UA_UInt32 i=1; i < size; i++)
+    {
+        uStatus = gcd(*gcdValue, arr[i], gcdValue);
+        if (uStatus != UA_STATUSCODE_GOOD) {
+            break;
+        }
+    }
+    return uStatus;
+}

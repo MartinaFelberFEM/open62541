@@ -567,6 +567,93 @@ START_TEST(idOrderString) {
     ck_assert(UA_NodeId_order(&id_str_d, &id_str_c) == UA_ORDER_MORE);
 } END_TEST
 
+START_TEST(calc_gcd) {
+
+    /*
+        TODO: 
+        * can we use a reference library implementation for checks? (c++ gcd would have been nice ...)
+        * shall we calculate reference test cases in matlab, export them to array and 
+            check the results here?
+    */
+
+    UA_UInt32 value = 0;
+
+    ck_assert(gcd(0, 0, &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+    ck_assert(gcd(0, 1, &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+    ck_assert(gcd(1, 0, &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    ck_assert(gcd(2, 4, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 2);
+
+    ck_assert(gcd(100, 200, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 100);
+
+    ck_assert(gcd(100, 150, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 50);
+
+    ck_assert(gcd(10, 30, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 10);
+
+    ck_assert(gcd(3, 6, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 3);
+
+    ck_assert(gcd(9, 17, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 1);
+
+    ck_assert(gcd(17, 47, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 1);
+
+    ck_assert(gcd(98, 56, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 14);
+
+    ck_assert(gcd(48, 18, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 6);
+
+} END_TEST
+
+START_TEST(calc_gcd_arr) {
+
+    UA_UInt32 value = 0;
+
+    ck_assert(gcd_arr(0, 0, 0) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    UA_UInt32 arr[] = { 13 };
+    ck_assert(gcd_arr(arr, 1, 0) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    ck_assert(gcd_arr(0, 0, &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    ck_assert(gcd_arr(arr, 0, &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    ck_assert(gcd_arr(arr, 1, &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 13);
+
+    UA_UInt32 arr1[] = { 2, 4, 0, 8 };
+    ck_assert(gcd_arr(arr1, sizeof(arr1) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    UA_UInt32 arr2[] = { 0, 0, 0, 0 };
+    ck_assert(gcd_arr(arr1, sizeof(arr2) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_BADINVALIDARGUMENT);
+
+    UA_UInt32 arr3[] = { 2, 4, 6, 8 };
+    ck_assert(gcd_arr(arr3, sizeof(arr3) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 2);
+
+    UA_UInt32 arr4[] = { 10, 99, 953, 47 };
+    ck_assert(gcd_arr(arr4, sizeof(arr4) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 1);
+
+    UA_UInt32 arr5[] = { 45, 66, 9134 };
+    ck_assert(gcd_arr(arr5, sizeof(arr5) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 1);
+
+    UA_UInt32 arr6[] = { 50, 100, 150 };
+    ck_assert(gcd_arr(arr6, sizeof(arr6) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 50);
+
+    UA_UInt32 arr7[] = { 77, 100 };
+    ck_assert(gcd_arr(arr7, sizeof(arr7) / sizeof(UA_UInt32), &value) == UA_STATUSCODE_GOOD);
+    ck_assert(value == 1);
+
+} END_TEST
 
 static Suite* testSuite_Utils(void) {
     Suite *s = suite_create("Utils");
@@ -581,6 +668,8 @@ static Suite* testSuite_Utils(void) {
     tcase_add_test(tc_utils, readNumberWithBase);
     tcase_add_test(tc_utils, StatusCode_msg);
     tcase_add_test(tc_utils, stringCompare);
+    tcase_add_test(tc_utils, calc_gcd);
+    tcase_add_test(tc_utils, calc_gcd_arr);
     suite_add_tcase(s,tc_utils);
 
 
