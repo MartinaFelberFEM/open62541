@@ -378,6 +378,11 @@ UA_StatusCode UA_EXPORT
 UA_Server_updateWriterGroupConfig(UA_Server *server, UA_NodeId writerGroupIdentifier,
                                   const UA_WriterGroupConfig *config);
 
+/* Get state of WriterGroup */
+UA_StatusCode UA_EXPORT
+UA_Server_WriterGroup_getState(UA_Server *server, UA_NodeId writerGroupIdentifier,
+                               UA_PubSubState *state);
+
 UA_StatusCode UA_EXPORT
 UA_Server_removeWriterGroup(UA_Server *server, const UA_NodeId writerGroup);
 
@@ -436,6 +441,13 @@ UA_StatusCode UA_EXPORT
 UA_Server_getDataSetWriterConfig(UA_Server *server, const UA_NodeId dsw,
                                  UA_DataSetWriterConfig *config);
 
+/* Get state of DataSetWriter */
+/* TODO: function names? UA_Server_WriterGroup_getState vs. UA_Server_getDataSetWriterState 
+    vs. UA_Server_DataSetReader_getState ?? */
+UA_StatusCode UA_EXPORT
+UA_Server_DataSetWriter_getState(UA_Server *server, UA_NodeId dataSetWriterIdentifier,
+                               UA_PubSubState *state);
+
 UA_StatusCode UA_EXPORT
 UA_Server_removeDataSetWriter(UA_Server *server, const UA_NodeId dsw);
 
@@ -480,6 +492,11 @@ UA_StatusCode UA_EXPORT
 UA_Server_DataSetReader_getConfig(UA_Server *server, UA_NodeId dataSetReaderIdentifier,
                                  UA_DataSetReaderConfig *config);
 
+/* Get state of DataSetReader */
+UA_StatusCode UA_EXPORT
+UA_Server_DataSetReader_getState(UA_Server *server, UA_NodeId dataSetReaderIdentifier,
+                               UA_PubSubState *state);
+ 
 /* Return Status Code after creating TargetVariables in Subscriber AddressSpace
  * TargetVariables define a list of variable mappings between received DataSet fields
  * and the TargetVariables in the Subscriber AddressSpace */
@@ -526,6 +543,11 @@ UA_Server_removeDataSetReader(UA_Server *server, UA_NodeId readerIdentifier);
 UA_StatusCode UA_EXPORT
 UA_Server_ReaderGroup_getConfig(UA_Server *server, UA_NodeId readerGroupIdentifier,
                                UA_ReaderGroupConfig *config);
+
+/* Get state of ReaderGroup */
+UA_StatusCode UA_EXPORT
+UA_Server_ReaderGroup_getState(UA_Server *server, UA_NodeId readerGroupIdentifier,
+                               UA_PubSubState *state);
 
 /* Add ReaderGroup to the created connection */
 UA_StatusCode UA_EXPORT
