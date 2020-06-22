@@ -22,6 +22,7 @@ typedef struct UA_PubSubManager{
     TAILQ_HEAD(UA_ListOfPubSubConnection, UA_PubSubConnection) connections;
     size_t publishedDataSetsSize;
     TAILQ_HEAD(UA_ListOfPublishedDataSet, UA_PublishedDataSet) publishedDataSets;
+    UA_UInt64 reflectionCallbackId;
 } UA_PubSubManager;
 
 void
@@ -44,6 +45,16 @@ UA_PubSubManager_changeRepeatedCallbackInterval(UA_Server *server, UA_UInt64 cal
                                                 UA_Double interval_ms);
 void
 UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callbackId);
+
+/***********************************/
+/*      PubSub Reflection handling */
+/***********************************/
+UA_StatusCode
+UA_PubSubManager_addReflectionCallback(UA_Server *server, UA_ServerCallback callback, 
+                                        UA_Double interval_ms, UA_UInt64 *callbackId);
+
+void
+UA_PubSubManager_removeReflectionCallback(UA_Server *server, UA_UInt64 callbackId);
 
 #endif /* UA_ENABLE_PUBSUB */
 

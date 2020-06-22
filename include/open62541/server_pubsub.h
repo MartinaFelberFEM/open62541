@@ -571,6 +571,14 @@ UA_Server_setReaderGroupOperational(UA_Server *server, const UA_NodeId readerGro
 UA_StatusCode UA_EXPORT
 UA_Server_setReaderGroupDisabled(UA_Server *server, const UA_NodeId readerGroupId);
 
+/**
+ * Reflection callback
+ * -----------
+ * */
+UA_StatusCode UA_EXPORT
+UA_Server_calcPubSubReflectionCbInterval(UA_Server *server, UA_Duration *interval);
+
+
 #endif /* UA_ENABLE_PUBSUB */
 
 _UA_END_DECLS

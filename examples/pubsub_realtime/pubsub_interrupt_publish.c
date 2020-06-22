@@ -251,6 +251,19 @@ UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callb
     pubCallback = NULL; /* So that a new callback can be registered */
 }
 
+UA_StatusCode
+UA_PubSubManager_addReflectionCallback(UA_Server *server, UA_ServerCallback callback,
+                                        UA_Double interval_ms, UA_UInt64 *callbackId) {
+    /* TODO: */
+    return UA_STATUSCODE_GOOD;
+}
+
+void
+UA_PubSubManager_removeReflectionCallback(UA_Server *server, UA_UInt64 callbackId) {
+    /* TODO: */
+    return UA_STATUSCODE_GOOD;
+}
+
 static void
 addPubSubConfiguration(UA_Server* server) {
     UA_NodeId connectionIdent;

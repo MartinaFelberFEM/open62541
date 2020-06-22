@@ -789,14 +789,29 @@ UA_DataSetReader *UA_ReaderGroup_findDSRbyId(UA_Server *server, UA_NodeId identi
 void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerGroup) {
     UA_PubSubConnection *connection =
         UA_PubSubConnection_findConnectionbyId(server, readerGroup->linkedConnection);
-    UA_ByteString buffer;
-    if(UA_ByteString_allocBuffer(&buffer, 512) != UA_STATUSCODE_GOOD) {
-        UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER, "Message buffer alloc failed!");
+    if (connection == 0) {
+        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "Get ReaderGroup connection failed!");
+        UA_ReaderGroup_setPubSubState(server, UA_PUBSUBSTATE_ERROR, readerGroup);
         return;
     }
 
-    connection->channel->receive(connection->channel, &buffer, NULL, 1000);
+    UA_ByteString buffer;
+    if(UA_ByteString_allocBuffer(&buffer, 512) != UA_STATUSCODE_GOOD) {
+        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "Message buffer alloc failed!");
+        UA_ReaderGroup_setPubSubState(server, UA_PUBSUBSTATE_ERROR, readerGroup);
+        return;
+    }
+
+    UA_StatusCode res = connection->channel->receive(connection->channel, &buffer, NULL, 1000);
+    if ((res & 0x80000000) != 0) { // status is bad
+        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "PubSub connection receive failed!");
+        UA_ReaderGroup_setPubSubState(server, UA_PUBSUBSTATE_ERROR, readerGroup);
+        UA_ByteString_deleteMembers(&buffer);
+        return;
+    } 
+    
     if(buffer.length > 0) {
+        
         if (readerGroup->config.rtLevel == UA_PUBSUB_RT_FIXED_SIZE) {
             /* Considering max DSM as 1
              * TODO:
@@ -849,6 +864,15 @@ void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerG
         UA_NetworkMessage_decodeBinary(&buffer, &currentPosition, &currentNetworkMessage);
         UA_Server_processNetworkMessage(server, &currentNetworkMessage, connection);
         UA_NetworkMessage_deleteMembers(&currentNetworkMessage);
+    } else {
+        /* we have not received anything */
+        UA_DataSetReader *pDataSetReader = 0;
+        LIST_FOREACH(pDataSetReader, &(readerGroup->readers), listEntry)
+        {
+            /* TODO: we need to know the callback interval -> hardcoded 5 ms */
+            pDataSetReader->tSinceLastMsg += 5.0 + 1.0; /* + select timeout ... */ 
+        }  
+
     }
 
     UA_ByteString_deleteMembers(&buffer);
@@ -1097,13 +1121,13 @@ UA_DataSetReader_setPubSubState(UA_Server *server, UA_PubSubState state, UA_Data
         case UA_PUBSUBSTATE_ERROR:
             switch (dataSetReader->state){
                 case UA_PUBSUBSTATE_DISABLED:
-                    break;
                 case UA_PUBSUBSTATE_PAUSED:
-                    break;
                 case UA_PUBSUBSTATE_OPERATIONAL:
+                    /* TODO: do we need to do something else here? */
+                    dataSetReader->state = state;
                     break;
                 case UA_PUBSUBSTATE_ERROR:
-                    return UA_STATUSCODE_GOOD;
+                    break;
                 default:
                     UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,
                                    "Received unknown PubSub state!");
@@ -1360,6 +1384,10 @@ UA_Server_processNetworkMessage(UA_Server *server, UA_NetworkMessage *pMsg,
 
     UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER,
                  "DataSetReader found with PublisherId");
+    
+    if (dataSetReader->firstMsgReceived == UA_FALSE) {
+        dataSetReader->firstMsgReceived = UA_TRUE;
+    }
 
     UA_Byte anzDataSets = 1;
     if(pMsg->payloadHeaderEnabled)
