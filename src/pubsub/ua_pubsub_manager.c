@@ -91,29 +91,6 @@ UA_Server_addPubSubConnection(UA_Server *server,
     addPubSubConnectionRepresentation(server, newConnectionsField);
 #endif
 
-    /* TODO: shall we add 1 PubSub reflection callback for every connection?
-        or only 1 global callback for all connections?
-    */
-    if (server->pubSubManager.connectionsSize == 1) {
-        /* we start with only adding 1 global PubSub reflection callback */
-
-        UA_Duration interval = 0.0;
-        retval = UA_Server_calcPubSubReflectionCbInterval(server, &interval);
-        if (retval == UA_STATUSCODE_GOOD) {
-            retval = UA_PubSubManager_addReflectionCallback(server, UA_PubSubManager_reflectionCallback, 
-                interval, &server->pubSubManager.reflectionCallbackId); 
-        }
-        if (retval != UA_STATUSCODE_GOOD) {
-            UA_PubSubConnection_clear(server, newConnectionsField);
-            TAILQ_REMOVE(&server->pubSubManager.connections, newConnectionsField, listEntry);
-            server->pubSubManager.connectionsSize--;
-            UA_free(newConnectionsField);
-            UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
-                "PubSub Connection creation failed. Adding reflection callback failed");
-            return UA_STATUSCODE_BADINTERNALERROR;
-        }
-    }
-
     return UA_STATUSCODE_GOOD;
 }
 
@@ -133,9 +110,6 @@ UA_Server_removePubSubConnection(UA_Server *server, const UA_NodeId connection) 
     TAILQ_REMOVE(&server->pubSubManager.connections, currentConnection, listEntry);
     UA_free(currentConnection);
 
-    if (server->pubSubManager.connectionsSize == 0) {
-        UA_PubSubManager_removeReflectionCallback(server, server->pubSubManager.reflectionCallbackId);
-    }
     return UA_STATUSCODE_GOOD;
 }
 
@@ -332,90 +306,6 @@ UA_PubSubManager_delete(UA_Server *server, UA_PubSubManager *pubSubManager) {
     }
 }
 
-void 
-UA_PubSubManager_reflectionCallback(UA_Server *server, void *data) {
-
-    /* check message receive timeout for all DataSetReaders */
-    UA_PubSubConnection *connection = 0;
-    TAILQ_FOREACH(connection, &server->pubSubManager.connections, listEntry) {
-        UA_ReaderGroup *readerGroup = 0;
-        LIST_FOREACH(readerGroup, &(connection->readerGroups), listEntry) {
-            UA_DataSetReader *datasetReader = 0;
-            LIST_FOREACH(datasetReader, &(readerGroup->readers), listEntry) {
-
-                if (datasetReader->firstMsgReceived == UA_TRUE) {
-                    /* check the MessageReceiveTimeout of every DataSetReader: max acceptable time between two DataSetMessages */
-                    if (datasetReader->tSinceLastMsg >= datasetReader->config.messageReceiveTimeout) {
-                        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "DataSetReader %.*s: MessageReceiveTimeout reached", 
-                            (int) datasetReader->config.name.length, datasetReader->config.name.data);
-                        UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_ERROR, datasetReader);
-                        /* TODO: set target variables state, handle override values etc. 
-                            -> see OpcUa spec: Message output to target mapping */
-                    } else {
-                        /* TODO: we should set the state back from ERROR to OPERATIONAL? if we start receiving again ...
-                                what happens if the user/application disables the readerGroup in the meantime?  */
-
-                        UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_OPERATIONAL, datasetReader);
-                    }
-                }
-            }
-        }
-    }
-
-}
-
-/* TODO: we only support integer intervals */
-/* we think we need a reflection callback for every WriterGroup 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-
-static const UA_Double ReflectionCbDefaultIntervalms = 5.0;
-UA_StatusCode
-UA_Server_calcPubSubReflectionCbInterval(UA_Server *server, UA_Duration *interval) {
-
-    if ((!server) || (!interval)) {
-        return UA_STATUSCODE_BADINVALIDARGUMENT;
-    }
-
-    UA_UInt32 tmpInterval = (UA_UInt32) ReflectionCbDefaultIntervalms;
-
-    /* get the MessageReceivetimeout of every DataSetReader and calculate 
-        common reflection callback interval */
-    UA_PubSubConnection *connection = 0;
-    TAILQ_FOREACH(connection, &server->pubSubManager.connections, listEntry) {
-        UA_ReaderGroup *readerGroup = 0;
-        LIST_FOREACH(readerGroup, &(connection->readerGroups), listEntry) {
-
-            if (readerGroup->readersCount == 0) {
-                UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER, 
-                    "UA_Server_calcPubSubReflectionCbInterval(): There are no DataSetReaders configured");
-                return UA_STATUSCODE_GOODNODATA;                        
-            } else if (readerGroup->readersCount == 1) {
-                tmpInterval = (UA_UInt32) readerGroup->readers.lh_first->config.messageReceiveTimeout;
-            } else {
-                /* calculate gcd of all MessageReceiveTimeouts */
-                UA_STACKARRAY(UA_UInt32, Timeouts, readerGroup->readersCount);
-                UA_UInt32 i = 0;
-                UA_DataSetReader *datasetReader = 0;
-                LIST_FOREACH(datasetReader, &(readerGroup->readers), listEntry) {
-                    Timeouts[i] = (UA_UInt32) datasetReader->config.messageReceiveTimeout;
-                    i++;
-                }
-
-                /* TODO: check if any msgreceivetimeout is 0 -> not sure if this can work */
-
-                
-                /* TODO: not correct */
-                if (gcd_arr(Timeouts, readerGroup->readersCount, &tmpInterval) != UA_STATUSCODE_GOOD) {
-
-                    /* TODO: */
-                }
-            }
-        }
-    }
-    *interval = (UA_Duration) tmpInterval;
-    return UA_STATUSCODE_GOOD;
-}
-
 /***********************************/
 /*      PubSub Jobs abstraction    */
 /***********************************/
@@ -425,64 +315,34 @@ UA_Server_calcPubSubReflectionCbInterval(UA_Server *server, UA_Duration *interva
 /* If UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING is enabled, a custom callback
  * management must be linked to the application */
 
-/* update PubSub reflection callback interval */
-static UA_StatusCode UA_PubSubManager_updateReflectionCallbackInterval(UA_Server *server) {
-    if (!server) {
-        return UA_STATUSCODE_BADINVALIDARGUMENT;
-    }
-
-    UA_Duration interval = 0.0;      
-    UA_StatusCode ret = UA_Server_calcPubSubReflectionCbInterval(server, &interval);
-    if (ret != UA_STATUSCODE_GOOD) {
-        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, 
-        "UA_PubSubManager_addRepeatedCallback(): Calculating new PubSub reflection callback interval failed");
-        return ret;
-    }
-    ret = UA_Timer_changeRepeatedCallbackInterval(&server->timer, server->pubSubManager.reflectionCallbackId, 
-        interval);
-    if (ret != UA_STATUSCODE_GOOD) {
-        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, 
-        "UA_PubSubManager_addRepeatedCallback(): Updating PubSub reflection callback interval failed");
-    }
-    return ret;
-}
-
 UA_StatusCode
 UA_PubSubManager_addRepeatedCallback(UA_Server *server, UA_ServerCallback callback,
                                      void *data, UA_Double interval_ms, UA_UInt64 *callbackId) {
-    UA_StatusCode ret = UA_PubSubManager_updateReflectionCallbackInterval(server);
-    if (ret == UA_STATUSCODE_GOOD) {
-        return UA_Timer_addRepeatedCallback(&server->timer, (UA_ApplicationCallback)callback,
+    return UA_Timer_addRepeatedCallback(&server->timer, (UA_ApplicationCallback)callback,
                                         server, data, interval_ms, callbackId);
-    }
-    return ret;
 }
 
 UA_StatusCode
 UA_PubSubManager_changeRepeatedCallbackInterval(UA_Server *server, UA_UInt64 callbackId,
                                                 UA_Double interval_ms) {
-    UA_StatusCode ret = UA_PubSubManager_updateReflectionCallbackInterval(server);
-    if (ret == UA_STATUSCODE_GOOD) {
-        return UA_Timer_changeRepeatedCallbackInterval(&server->timer, callbackId, interval_ms);
-    }
-    return ret;
+    return UA_Timer_changeRepeatedCallbackInterval(&server->timer, callbackId, interval_ms);
 }
 
 void
 UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callbackId) {
-    UA_PubSubManager_updateReflectionCallbackInterval(server);
     UA_Timer_removeCallback(&server->timer, callbackId);
 }
 
+/* for DataSetReaders */
 UA_StatusCode
-UA_PubSubManager_addReflectionCallback(UA_Server *server, UA_ServerCallback callback, 
-    UA_Double interval_ms, UA_UInt64 *callbackId) {
-    return UA_Timer_addRepeatedCallback(&server->timer, (UA_ApplicationCallback) callback,
-            server, 0, interval_ms, callbackId);
+UA_PubSubManager_addMsgRcvTimeoutCallback(UA_Server *server, UA_ServerCallback callback,
+                                            void *data, UA_Double interval_ms, UA_UInt64 *callbackId) {
+    return UA_Timer_addRepeatedCallback(&server->timer, (UA_ApplicationCallback)callback,
+                                        server, data, interval_ms, callbackId);
 }
 
 void
-UA_PubSubManager_removeReflectionCallback(UA_Server *server, UA_UInt64 callbackId) {
+UA_PubSubManager_removeMsgRcvTimeoutCallback(UA_Server *server, UA_UInt64 callbackId) {
     UA_Timer_removeCallback(&server->timer, callbackId);
 }
 

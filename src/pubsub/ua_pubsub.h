@@ -195,9 +195,8 @@ typedef struct UA_DataSetReader {
     /* This flag is 'read only' and is set internally based on the PubSub state. */
     UA_Boolean configurationFrozen;
     UA_NetworkMessageOffsetBuffer bufferedMessage;
-
-    UA_Boolean firstMsgReceived;    /* TODO: we don't know when Publisher starts ... */
-    UA_Duration tSinceLastMsg;
+    UA_Boolean msgRcvTimeoutCallbackIsRegistered;
+    UA_UInt64 msgRcvTimeoutCallbackId;
 }UA_DataSetReader;
 
 /* Process Network Message using DataSetReader */
@@ -266,12 +265,9 @@ UA_ReaderGroup_addSubscribeCallback(UA_Server *server, UA_ReaderGroup *readerGro
 void
 UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerGroup);
 
-/*********************************************************/
-/*               Reflection callback handling            */
-/*********************************************************/
+/* MessageReceiveTimeout callback */
 void 
-UA_PubSubManager_reflectionCallback(UA_Server *server, void *data);
-    /* TODO: why are the callbacks not declared at server_pubsub.h and exported? */
+UA_DataSetReader_checkReceiveTimeout(UA_Server *server, UA_DataSetReader *reader);
 
 #endif /* UA_ENABLE_PUBSUB */
 

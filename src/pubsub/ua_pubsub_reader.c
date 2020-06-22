@@ -327,6 +327,14 @@ UA_Server_removeReaderGroup(UA_Server *server, UA_NodeId groupIdentifier) {
     if(connection == NULL)
         return UA_STATUSCODE_BADNOTFOUND;
 
+    /* TODO: remove all running timers of DataSetReaders */
+    UA_DataSetReader *datasetReader = 0;
+    LIST_FOREACH(datasetReader, &(readerGroup->readers), listEntry) {
+        if (datasetReader->msgRcvTimeoutCallbackIsRegistered == UA_TRUE) {
+            UA_PubSubManager_removeMsgRcvTimeoutCallback(server, datasetReader->msgRcvTimeoutCallbackId);
+        }
+    }
+
     /* Unregister subscribe callback */
     if(readerGroup->state == UA_PUBSUBSTATE_OPERATIONAL)
         UA_PubSubManager_removeRepeatedPubSubCallback(server, readerGroup->subscribeCallbackId);
@@ -460,6 +468,7 @@ UA_ReaderGroup_setPubSubState(UA_Server *server, UA_PubSubState state, UA_Reader
                     LIST_FOREACH(dataSetReader, &readerGroup->readers, listEntry){
                         UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_OPERATIONAL, dataSetReader);
                     }
+                    /* TODO: check StatusCode? */
                     UA_ReaderGroup_addSubscribeCallback(server, readerGroup);
                     break;
                 case UA_PUBSUBSTATE_PAUSED:
@@ -663,6 +672,16 @@ UA_Server_setReaderGroupDisabled(UA_Server *server, const UA_NodeId readerGroupI
     UA_ReaderGroup *rg = UA_ReaderGroup_findRGbyId(server, readerGroupId);
     if(!rg)
         return UA_STATUSCODE_BADNOTFOUND;
+
+    /* TODO: check if this works */
+    /* remove the message receive timeout timers of all DataSetReaders */
+    UA_DataSetReader *datasetReader = 0;
+    LIST_FOREACH(datasetReader, &(rg->readers), listEntry) {
+        if (datasetReader->msgRcvTimeoutCallbackIsRegistered == UA_TRUE) {
+            UA_PubSubManager_removeMsgRcvTimeoutCallback(server, datasetReader->msgRcvTimeoutCallbackId);
+        }
+    }
+
     return UA_ReaderGroup_setPubSubState(server, UA_PUBSUBSTATE_DISABLED, rg);
 }
 
@@ -864,17 +883,7 @@ void UA_ReaderGroup_subscribeCallback(UA_Server *server, UA_ReaderGroup *readerG
         UA_NetworkMessage_decodeBinary(&buffer, &currentPosition, &currentNetworkMessage);
         UA_Server_processNetworkMessage(server, &currentNetworkMessage, connection);
         UA_NetworkMessage_deleteMembers(&currentNetworkMessage);
-    } else {
-        /* we have not received anything */
-        UA_DataSetReader *pDataSetReader = 0;
-        LIST_FOREACH(pDataSetReader, &(readerGroup->readers), listEntry)
-        {
-            /* TODO: we need to know the callback interval -> hardcoded 5 ms */
-            pDataSetReader->tSinceLastMsg += 5.0 + 1.0; /* + select timeout ... */ 
-        }  
-
-    }
-
+    } 
     UA_ByteString_deleteMembers(&buffer);
 }
 
@@ -1338,6 +1347,25 @@ UA_Server_DataSetReader_process(UA_Server *server, UA_DataSetReader *dataSetRead
         }
 
     }
+
+    if (dataSetReader->msgRcvTimeoutCallbackIsRegistered == UA_TRUE) {
+        /* stop previous message receive timeout timer */
+        UA_PubSubManager_removeMsgRcvTimeoutCallback(server, dataSetReader->msgRcvTimeoutCallbackId);
+    }
+    /* start new message receive timeout timer */
+    if (UA_PubSubManager_addMsgRcvTimeoutCallback(server, (UA_ServerCallback) UA_DataSetReader_checkReceiveTimeout, 
+        dataSetReader, dataSetReader->config.messageReceiveTimeout, &(dataSetReader->msgRcvTimeoutCallbackId)) == UA_STATUSCODE_GOOD) {
+            dataSetReader->msgRcvTimeoutCallbackIsRegistered = UA_TRUE;
+
+        /* TODO: check if this is correct */
+        /* if previous state was error, because we haven't received some messages, we should set state back to operational */
+        UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_OPERATIONAL, dataSetReader);
+    } else {
+        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
+                        "Starting Message Receive Timeout timer failed.");
+        /* TODO: is it ok to set state to error here? */
+        UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_ERROR, dataSetReader);
+    }
 }
 
 static void
@@ -1385,10 +1413,6 @@ UA_Server_processNetworkMessage(UA_Server *server, UA_NetworkMessage *pMsg,
     UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER,
                  "DataSetReader found with PublisherId");
     
-    if (dataSetReader->firstMsgReceived == UA_FALSE) {
-        dataSetReader->firstMsgReceived = UA_TRUE;
-    }
-
     UA_Byte anzDataSets = 1;
     if(pMsg->payloadHeaderEnabled)
         anzDataSets = pMsg->payloadHeader.dataSetPayloadHeader.count;
@@ -1401,6 +1425,16 @@ UA_Server_processNetworkMessage(UA_Server *server, UA_NetworkMessage *pMsg,
     /* To Do Handle when dataSetReader parameters are null for publisherId
      * and zero for WriterGroupId and DataSetWriterId */
     return UA_STATUSCODE_GOOD;
+}
+
+void UA_DataSetReader_checkReceiveTimeout(UA_Server *server, UA_DataSetReader *reader) {
+    /* watchdog ... */
+
+    UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER,
+                 "Error: MessageReceiveTimeout occurred at DataSetReader '%.*s'", 
+                 (int) reader->config.name.length, reader->config.name.data);
+
+    UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_ERROR, reader);
 }
 
 #endif /* UA_ENABLE_PUBSUB */

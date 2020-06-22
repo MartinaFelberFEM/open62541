@@ -413,16 +413,15 @@ UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callb
 }
 
 UA_StatusCode
-UA_PubSubManager_addReflectionCallback(UA_Server *server, UA_ServerCallback callback,
-                                        UA_Double interval_ms, UA_UInt64 *callbackId) {
-    /* TODO: */
+UA_PubSubManager_addMsgRcvTimeoutCallback(UA_Server *server, UA_ServerCallback callback,
+                                            void *data, UA_Double interval_ms, UA_UInt64 *callbackId) {
+    /* TODO: start timer */
     return UA_STATUSCODE_GOOD;
 }
 
 void
-UA_PubSubManager_removeReflectionCallback(UA_Server *server, UA_UInt64 callbackId) {
-    /* TODO: */
-    return UA_STATUSCODE_GOOD;
+UA_PubSubManager_removeMsgRcvTimeoutCallback(UA_Server *server, UA_UInt64 callbackId) {
+    /* TODO: delete timer */
 }
 
 #if defined(PUBLISHER)

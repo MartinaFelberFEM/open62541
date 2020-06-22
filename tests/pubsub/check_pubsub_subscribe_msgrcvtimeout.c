@@ -33,97 +33,6 @@ static void teardown(void) {
     UA_Server_delete(server);
 }
 
-START_TEST(ReflectionCallbackIntervalTest) {
-
-    /* check PubSub reflection callback interval calculation:
-        The callback interval shall be set to meet the MessageReceiveTimeout of all configured 
-        DataSetReaders */
-
-    /* spec: The parameter MessageReceiveTimeout is the maximum acceptable time between two DataSetMessages.
-        The MessageReceiveTimeout is related to the Publisher side parameters PublishingInterval, KeepAliveTime and KeyFrameCount.
-
-        -> BUT: regarding the MessageReceiveTimeout should be sufficient. The application has to configure the MessageReceiveTimeout
-            properly 
-    */
-
-    /* check default MessageReceivetimeout */
-    UA_Duration interval = 0.0;
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 5.0);
-
-    /* add a connection */
-    UA_NodeId conn1Id;
-    UA_NodeId_init(&conn1Id);
-    UA_PubSubConnectionConfig connectionConfig;
-    memset(&connectionConfig, 0, sizeof(UA_PubSubConnectionConfig));
-    connectionConfig.name = UA_STRING("UADP Connection 1");
-    connectionConfig.enabled = UA_TRUE;
-    connectionConfig.publisherIdType = UA_PUBSUB_PUBLISHERID_NUMERIC;
-    connectionConfig.publisherId.numeric = 1;
-    UA_NetworkAddressUrlDataType networkAddressUrl = {UA_STRING_NULL, UA_STRING("opc.udp://224.0.0.22:4840/")};
-    UA_Variant_setScalar(&connectionConfig.address, &networkAddressUrl,
-                         &UA_TYPES[UA_TYPES_NETWORKADDRESSURLDATATYPE]);
-    connectionConfig.transportProfileUri = UA_STRING("http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp");
-    ck_assert(UA_Server_addPubSubConnection(server, &connectionConfig, &conn1Id) == UA_STATUSCODE_GOOD);
-
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 5.0);
-
-    /* add a ReaderGroup */
-    UA_NodeId readerGrp1Id;
-    UA_NodeId_init(&readerGrp1Id);
-    UA_ReaderGroupConfig readerGroupConfig;
-    memset (&readerGroupConfig, 0, sizeof(UA_ReaderGroupConfig));
-    readerGroupConfig.name = UA_STRING("ReaderGroup1");
-    ck_assert(UA_Server_addReaderGroup(server, conn1Id, &readerGroupConfig,
-                                       &readerGrp1Id) == UA_STATUSCODE_GOOD);
-    /* Note: we do not regard if the ReaderGroup is set to operational or not, because the application can do it after 
-        adding it */
-    
-    /* add DataSetReader: MessageReceiveTimeout = 100.0 */ 
-    UA_NodeId tmpDsReaderId;
-    UA_NodeId_init(&tmpDsReaderId);
-    UA_DataSetReaderConfig readerConfig;
-    memset(&readerConfig, 0, sizeof(UA_DataSetReaderConfig));
-    readerConfig.messageReceiveTimeout = 100.0;
-    ck_assert(UA_Server_addDataSetReader(server, readerGrp1Id, &readerConfig,
-                                         &tmpDsReaderId) == UA_STATUSCODE_GOOD);
-    /* check callback interval */
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 100.0);
-
-    /* add DataSetReader: MessageReceiveTimeout = 150.0 */ 
-    memset(&readerConfig, 0, sizeof(UA_DataSetReaderConfig));
-    readerConfig.messageReceiveTimeout = 150.0;
-    ck_assert(UA_Server_addDataSetReader(server, readerGrp1Id, &readerConfig,
-                                         &tmpDsReaderId) == UA_STATUSCODE_GOOD);
-    /* check callback interval */
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 50.0);
-    
-    /* add DataSetReader: MessageReceiveTimeout = 10.0 */ 
-    memset(&readerConfig, 0, sizeof(UA_DataSetReaderConfig));
-    readerConfig.messageReceiveTimeout = 10.0;
-    ck_assert(UA_Server_addDataSetReader(server, readerGrp1Id, &readerConfig,
-                                         &tmpDsReaderId) == UA_STATUSCODE_GOOD);
-    /* check callback interval */
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 10);
-
-    /* add DataSetReader: MessageReceiveTimeout = 3.0 */ 
-    memset(&readerConfig, 0, sizeof(UA_DataSetReaderConfig));
-    readerConfig.messageReceiveTimeout = 3.0;
-    ck_assert(UA_Server_addDataSetReader(server, readerGrp1Id, &readerConfig,
-                                         &tmpDsReaderId) == UA_STATUSCODE_GOOD);
-    /* check callback interval */
-    ck_assert(UA_Server_calcPubSubReflectionCbInterval(server, &interval) == UA_STATUSCODE_GOOD);
-    ck_assert(interval == 3);
-
-} END_TEST
-
-
-
-
 static void ValidatePublishSubscribe(
     UA_NodeId PublishedVarId,
     UA_NodeId SubscribedVarId,
@@ -369,57 +278,53 @@ START_TEST(SimpleMsgReceiveTimeoutTest) {
         &SubscriberConnectionId, &ReaderGroupId, &DataSetReaderId, &SubscribedVarId, MessageReceiveTimeout);
 
     /* check that publish/subscribe works */
+    ValidatePublishSubscribe(PublishedVarId, SubscribedVarId, 10, 1);
 
-    /* TODO: sometimes iteration count 1 does not work -> check why */
-    ValidatePublishSubscribe(PublishedVarId, SubscribedVarId, 10, 4);
-
-    ValidatePublishSubscribe(PublishedVarId, SubscribedVarId, 33, 4);
+    ValidatePublishSubscribe(PublishedVarId, SubscribedVarId, 33, 1);
+    
+    UA_PubSubState state;
+    ck_assert(UA_Server_DataSetReader_getState(server, DataSetReaderId, &state) == UA_STATUSCODE_GOOD);
+    ck_assert(state == UA_PUBSUBSTATE_OPERATIONAL);
 
     /* now we disable the publisher WriterGroup and check if a MessageReceiveTimeout occurs at Subscriber */
     ck_assert(UA_Server_setWriterGroupDisabled(server, WriterGroupId) == UA_STATUSCODE_GOOD);
 
-    /* normally it should occur after 2 iterations, or 3 maybe? */
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    UA_Server_run_iterate(server, true);
-    
-    /* state of ReaderGroup should still be ok -> but DataSetReader state shall be error */
-    UA_PubSubState state;
-    ck_assert(UA_Server_DataSetReader_getState(server, DataSetReaderId, &state) == UA_STATUSCODE_GOOD);
-    ck_assert(state == UA_PUBSUBSTATE_ERROR);
+
+    ck_assert(UA_Server_WriterGroup_getState(server, WriterGroupId, &state) == UA_STATUSCODE_GOOD);
+    ck_assert(state == UA_PUBSUBSTATE_DISABLED);
+    ck_assert(UA_Server_DataSetWriter_getState(server, DataSetWriterId, &state) == UA_STATUSCODE_GOOD);
+    ck_assert(state == UA_PUBSUBSTATE_DISABLED);
+
+    /* Server run timeout should be 50 ms -> so timeout should occur immediately */
+    for (size_t i = 0; i < 1; i++) {
+        UA_Server_run_iterate(server, true);
+    }
+
+    /* state of ReaderGroup should still be ok */
     ck_assert(UA_Server_ReaderGroup_getState(server, ReaderGroupId, &state) == UA_STATUSCODE_GOOD);
     ck_assert(state == UA_PUBSUBSTATE_OPERATIONAL);
+     /* but DataSetReader state shall be error */
+    ck_assert(UA_Server_DataSetReader_getState(server, DataSetReaderId, &state) == UA_STATUSCODE_GOOD);
+    ck_assert(state == UA_PUBSUBSTATE_ERROR);
 
 } END_TEST
 
 
 int main(void) {
 
-    // /* test case */
-    // TCase *tc_reflection_cb_interval = tcase_create("PubSub reflection callback interval test");
-    // tcase_add_checked_fixture(tc_reflection_cb_interval, setup, teardown);
-    // tcase_add_test(tc_reflection_cb_interval, ReflectionCallbackIntervalTest);
+    /* test case */
+    TCase *tc_subscribe_msgrcvtimeout = tcase_create("PubSub subscriber message receive timeout test");
+    tcase_add_checked_fixture(tc_subscribe_msgrcvtimeout, setup, teardown);
+    tcase_add_test(tc_subscribe_msgrcvtimeout, SimpleMsgReceiveTimeoutTest);
 
-    // TCase *tc_subscribe_msgrcvtimeout = tcase_create("PubSub subscriber message receive timeout test");
-    // tcase_add_checked_fixture(tc_subscribe_msgrcvtimeout, setup, teardown);
-    // tcase_add_test(tc_subscribe_msgrcvtimeout, SimpleMsgReceiveTimeoutTest);
+    Suite *s = suite_create("PubSub subscriber message receive timeout test suite");
+    suite_add_tcase(s, tc_subscribe_msgrcvtimeout);
 
-    // Suite *s = suite_create("PubSub subscriber message receive timeout test suite");
-    // // suite_add_tcase(s, tc_reflection_cb_interval);
-    // suite_add_tcase(s, tc_subscribe_msgrcvtimeout);
-
-    // SRunner *sr = srunner_create(s);
-    // srunner_set_fork_status(sr, CK_NOFORK);
-    // srunner_run_all(sr,CK_NORMAL);
-    // int number_failed = srunner_ntests_failed(sr);
-    // srunner_free(sr);
-    // return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
-
-
-    return EXIT_SUCCESS;
+    SRunner *sr = srunner_create(s);
+    srunner_set_fork_status(sr, CK_NOFORK);
+    srunner_run_all(sr,CK_NORMAL);
+    int number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
