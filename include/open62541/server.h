@@ -116,6 +116,10 @@ struct UA_ServerConfig {
     /*PubSub network layer */
     size_t pubsubTransportLayersSize;
     UA_PubSubTransportLayer *pubsubTransportLayers;
+    /* Callback for PubSub component state changes */
+    void (*pubsubStateChangeCallback)(UA_NodeId *pubsubComponentId,
+                                      UA_PubSubState state,
+                                      UA_StatusCode status);
 #endif
 
     /* Available security policies */

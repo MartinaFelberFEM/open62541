@@ -274,6 +274,9 @@ mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP_XDP)
 option(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING
         "Use a custom implementation for the publish callback handling" OFF)
 mark_as_advanced(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING)
+option(UA_ENABLE_PUBSUB_CUSTOM_TIMEOUT_HANDLING
+       "Use a custom timer implementation for the timeout handling of PubSub components" OFF)
+mark_as_advanced(UA_ENABLE_PUBSUB_CUSTOM_TIMEOUT_HANDLING)
 option(UA_ENABLE_PUBSUB_ETH_UADP_ETF "Use ETF implementation for the ETH_UADP publish" OFF)
 mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP_ETF)
 
@@ -315,6 +318,16 @@ if(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING)
         message(FATAL_ERROR "Custom publish callback handling cannot be used with PubSub function disabled")
     endif()
 endif()
+
+if(UA_ENABLE_PUBSUB_CUSTOM_TIMEOUT_HANDLING)
+    if(NOT UA_ENABLE_PUBSUB)
+        message(FATAL_ERROR "Custom PubSub timeout handling cannot be used with PubSub function disabled")
+    endif()
+endif()
+
+option(UA_ENABLE_PUBSUB_ETH_UADP_ETF
+       "Use ETF implementation for the ETH_UADP publish" OFF)
+mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP_ETF)
 
 if(UA_ENABLE_PUBSUB_ETH_UADP_ETF)
     if(NOT UA_ENABLE_PUBSUB)
