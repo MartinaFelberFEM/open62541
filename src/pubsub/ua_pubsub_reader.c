@@ -1482,6 +1482,10 @@ UA_Server_DataSetReader_process(UA_Server *server, UA_DataSetReader *dataSetRead
                                                       dataSetMsg->data.keyFrameData.dataSetFields[i].value);
                         if(retVal != UA_STATUSCODE_GOOD)
                             UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER, "Error Write Value KF %" PRIu16 ": 0x%"PRIx32, i, retVal);
+
+                        // TODO: delete
+                        UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
+                            "Reader: set value '%i'", * ((UA_Int32*) dataSetMsg->data.keyFrameData.dataSetFields[i].value.data));
                     }
                     else {
                         UA_WriteValue writeVal;

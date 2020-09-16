@@ -1468,6 +1468,11 @@ UA_PubSubDataSetField_sampleValue(UA_Server *server, UA_DataSetField *field,
         rvid.attributeId = field->config.field.variable.publishParameters.attributeId;
         rvid.indexRange = field->config.field.variable.publishParameters.indexRange;
         *value = UA_Server_read(server, &rvid, UA_TIMESTAMPSTORETURN_BOTH);
+
+        // TODO: delete
+        UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,
+            "Writer: read value '%i'", * ((UA_Int32*) value->value.data));
+
     } else {
         *value = **field->config.field.variable.rtValueSource.staticValueSource;
         value->value.storageType = UA_VARIANT_DATA_NODELETE;
