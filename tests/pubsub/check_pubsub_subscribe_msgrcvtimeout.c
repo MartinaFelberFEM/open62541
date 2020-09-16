@@ -39,7 +39,7 @@ void UA_comboSleep(unsigned long duration) {
     struct timespec sleepValue;
     sleepValue.tv_sec = sec;
     sleepValue.tv_nsec = ns;
-    nanosleep(&sleepValue, NULL);
+    assert(0 == nanosleep(&sleepValue, NULL));
 }
 #endif 
 /***************************************************************************************************/
@@ -50,8 +50,16 @@ void UA_comboSleep(unsigned long duration) {
 
 #ifndef WIN32
 #include <pthread.h>
+#include <limits.h>
+
 #define THREAD_HANDLE pthread_t
-#define THREAD_CREATE(handle, callback) pthread_create(&handle, NULL, callback, NULL)
+#define THREAD_CREATE(handle, callback) \
+    pthread_attr_t tattr; \
+    assert(0 == pthread_attr_init(&tattr)); \
+    size_t size = 0; \
+    assert(0 == pthread_attr_getstacksize(&tattr, &size)); \
+    assert(0 == pthread_attr_setstacksize(&tattr, size + 0x80000)); \
+    pthread_create(&handle, &tattr, callback, NULL)
 #define THREAD_JOIN(handle) pthread_join(handle, NULL)
 #define THREAD_CALLBACK(name) static void * name(void *_)
 #else
