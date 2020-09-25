@@ -117,6 +117,15 @@ _UA_BEGIN_DECLS
  * **UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING**
  *  Enable the OPC UA PubSub support with custom callback implementation for Publisher and Subscriber. The option will provide flexibility to use the user defined callback mechanism for sending
  *  packets in Publisher and receiving packets in the Subscriber. Disabled by default.
+ * **UA_ENABLE_PUBSUB_TIMEOUT_HANDLING**
+ *  Enable the experimental PubSub timeout handling. This feature provides the MessageReceiveTimeout check of a DataSetReader and can be extended to 
+ *  check other PubSub timeouts as well. It uses the internal server callback implementation. An application can check for PubSub state changes and timeouts 
+ *  by providing a pubsubStateChangeCallback() at the server configuration (UA_PubSubConfiguration).
+ *  Disabled by default.
+ * **UA_ENABLE_PUBSUB_TIMEOUT_CUSTOM_HANDLING**
+ *  Use a custom timer implementation for Publisher and Subscriber timeouts. 
+ *  This options enables realtime applications to link a custom timer implementation for PubSub timeout handling, instead of using the internal server callback mechanism.
+ *  Disabled by default.
  * **UA_ENABLE_PUBSUB_ETH_UADP**
  *  Enable the OPC UA Ethernet PubSub support to transport UADP NetworkMessages as payload of Ethernet II frame without IP or UDP headers. This option will include Publish and Subscribe based on
  *  EtherType B62C. Disabled by default.
@@ -146,6 +155,18 @@ _UA_BEGIN_DECLS
  *
  * Take a look on the PubSub Tutorials for mor details about the API usage.
  */
+
+/* General PubSub configuration */
+typedef struct UA_PubSubConfiguration {
+
+    /* Callback for PubSub component state changes:
+    If provided this callback informs the application about PubSub component state changes. 
+    E.g. state change from operational to error in case of a DataSetReader MessageReceiveTimeout.
+    The status code provides additional information. */
+    void (*pubsubStateChangeCallback)(UA_NodeId *pubsubComponentId,
+                                      UA_PubSubState state,
+                                      UA_StatusCode status);
+} UA_PubSubConfiguration;
 
 typedef enum {
     UA_PUBSUB_PUBLISHERID_NUMERIC,

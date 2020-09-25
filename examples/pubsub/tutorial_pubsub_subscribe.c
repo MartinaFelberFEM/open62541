@@ -93,11 +93,12 @@ addDataSetReader(UA_Server *server) {
     /* The following parameters are used to show that the data published by
      * tutorial_pubsub_publish.c is being subscribed and is being updated in
      * the information model */
-    UA_UInt16 publisherIdentifier = 2234;
-    readerConfig.publisherId.type = &UA_TYPES[UA_TYPES_UINT16];
-    readerConfig.publisherId.data = &publisherIdentifier;
-    readerConfig.writerGroupId    = 100;
-    readerConfig.dataSetWriterId  = 62541;
+    UA_UInt16 publisherIdentifier      = 2234;
+    readerConfig.publisherId.type      = &UA_TYPES[UA_TYPES_UINT16];
+    readerConfig.publisherId.data      = &publisherIdentifier;
+    readerConfig.writerGroupId         = 100;
+    readerConfig.dataSetWriterId       = 62541;
+    readerConfig.messageReceiveTimeout = 200.0; /* Timeout must be greater than publishing interval of corresponding WriterGroup */
 
     /* Setting up Meta data configuration in DataSetReader */
     fillTestDataSetMetaData(&readerConfig.dataSetMetaData);
@@ -227,6 +228,29 @@ static void stopHandler(int sign) {
     running = false;
 }
 
+#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+/* Provide a callback to get notifications about specific PubSub state changes or timeouts.
+    Currently only the MessageReceiveTimeout of the subscriber is supported.
+    Stop the tutorial_pubsub_publish example during operation to trigger the MessageReceiveTimeout and 
+    check the callback invocation here */
+static void PubsubStateChangeCallback(UA_NodeId *pubsubComponentId,
+                                      UA_PubSubState state,
+                                      UA_StatusCode status) {
+    
+    if (pubsubComponentId == 0) {
+        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "PubSubStateChangeCallback(): Null pointer error. Internal error");
+        return;
+    }
+
+    UA_String strId;
+    UA_String_init(&strId);
+    UA_NodeId_print(pubsubComponentId, &strId);
+    UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "PubSubStateChangeCallback(): State of component '%.*s' changed to '%i'. "
+        "Status code '0x%08x' '%s'", (UA_Int32) strId.length, strId.data, state, status, UA_StatusCode_name(status));
+    UA_String_clear(&strId);
+}
+#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+
 static int
 run(UA_String *transportProfile, UA_NetworkAddressUrlDataType *networkAddressUrl) {
     signal(SIGINT, stopHandler);
@@ -253,6 +277,11 @@ run(UA_String *transportProfile, UA_NetworkAddressUrlDataType *networkAddressUrl
 #ifdef UA_ENABLE_PUBSUB_ETH_UADP
     config->pubsubTransportLayers[1] = UA_PubSubTransportLayerEthernet();
     config->pubsubTransportLayersSize++;
+#endif
+
+#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+    /* provide a callback to get notifications of specific PubSub state changes or timeouts (e.g. subscriber MessageReceiveTimeout) */
+    config->pubsubConfiguration.pubsubStateChangeCallback = PubsubStateChangeCallback;
 #endif
 
     /* API calls */
