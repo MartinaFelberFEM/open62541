@@ -219,6 +219,11 @@ add_test_valgrind(timer ${TESTS_BINARY_DIR}/check_timer)
 
 # Test Server
 
+add_executable(check_translate_browsepath server/check_translate_browsepath.c $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-testplugins>)
+target_link_libraries(check_translate_browsepath ${LIBS})
+add_test_valgrind(check_translate_browsepath ${TESTS_BINARY_DIR}/check_translate_browsepath)
+
+
 add_executable(check_accesscontrol server/check_accesscontrol.c $<TARGET_OBJECTS:open62541-object> $<TARGET_OBJECTS:open62541-testplugins>)
 target_link_libraries(check_accesscontrol ${LIBS})
 add_test_valgrind(accesscontrol ${TESTS_BINARY_DIR}/check_accesscontrol)
