@@ -24,6 +24,11 @@ typedef struct UA_PubSubManager{
     TAILQ_HEAD(UA_ListOfPublishedDataSet, UA_PublishedDataSet) publishedDataSets;
 } UA_PubSubManager;
 
+typedef enum UA_PubSubMonitoringType {
+    eMessageReceiveTimeout
+    // extend as needed
+} UA_PubSubMonitoringType;
+
 void
 UA_PubSubManager_delete(UA_Server *server, UA_PubSubManager *pubSubManager);
 
@@ -46,23 +51,23 @@ void
 UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callbackId);
 
 /*************************************************/
-/*      PubSub component timeout handling        */
+/*      PubSub component monitoring              */
 /*************************************************/
 
 UA_StatusCode
-UA_PubSubComponent_createTimer(UA_Server *server, void *component, UA_ServerCallback callback);
+UA_PubSubComponent_createMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType, UA_ServerCallback callback);
 
 UA_StatusCode
-UA_PubSubComponent_startTimer(UA_Server *server, void *component);
+UA_PubSubComponent_startMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
 
 UA_StatusCode
-UA_PubSubComponent_stopTimer(UA_Server *server, void *component);
+UA_PubSubComponent_stopMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
 
 UA_StatusCode
-UA_PubSubComponent_updateTimerInterval(UA_Server *server, void *component);
+UA_PubSubComponent_updateMonitoringInterval(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
 
 UA_StatusCode
-UA_PubSubComponent_deleteTimer(UA_Server *server, void *component);
+UA_PubSubComponent_deleteMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
 
 #endif /* UA_ENABLE_PUBSUB */
 

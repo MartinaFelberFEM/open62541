@@ -228,28 +228,123 @@ static void stopHandler(int sign) {
     running = false;
 }
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
 /* Provide a callback to get notifications about specific PubSub state changes or timeouts.
     Currently only the MessageReceiveTimeout of the subscriber is supported.
     Stop the tutorial_pubsub_publish example during operation to trigger the MessageReceiveTimeout and 
     check the callback invocation here */
-static void PubsubStateChangeCallback(UA_NodeId *pubsubComponentId,
+static void
+pubsubStateChangeCallback(UA_NodeId *pubsubComponentId,
                                       UA_PubSubState state,
                                       UA_StatusCode status) {
     
     if (pubsubComponentId == 0) {
-        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "PubSubStateChangeCallback(): Null pointer error. Internal error");
+        UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "pubsubStateChangeCallback(): Null pointer error. Internal error");
         return;
     }
 
     UA_String strId;
     UA_String_init(&strId);
     UA_NodeId_print(pubsubComponentId, &strId);
-    UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "PubSubStateChangeCallback(): State of component '%.*s' changed to '%i'. "
+    UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "pubsubStateChangeCallback(): State of component '%.*s' changed to '%i'. "
         "Status code '0x%08x' '%s'", (UA_Int32) strId.length, strId.data, state, status, UA_StatusCode_name(status));
     UA_String_clear(&strId);
 }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
+
+#ifdef UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND
+
+/*  If UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND option is enabled, 
+ *  a custom implementation for the following functions must be provided by the application code.
+ *  See default implementation for guidelines.
+ *  This example provides the monitoring backend for the DataSetReader MessageReceiveTimeout. 
+ *  It uses the open62541 callback mechanism as in the default implementation. */
+
+UA_StatusCode
+UA_PubSubComponent_createMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType, UA_ServerCallback callback) {
+    if ((!server) || (!component) || (!callback)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    /* example: handle MessageReceiveTimeout of DataSetReader */
+    UA_PubSubComponentEnumType componentType = *((UA_PubSubComponentEnumType*) component);
+    if ((componentType == UA_PUBSUB_COMPONENT_DATASETREADER) && (eMonitoringType == eMessageReceiveTimeout)) {
+        /* initialize custom monitoring (timer) here: e.g. Linux timer_create(); 
+            store timer Id at reader->msgRcvTimeoutTimerId (use mapping) */
+        reader->msgRcvTimeoutTimerCallback = callback;
+    } else {
+        ret = UA_STATUSCODE_BADNOTSUPPORTED;
+    }
+    return ret;
+}
+
+UA_StatusCode
+UA_PubSubComponent_startMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType) {
+    if ((!server) || (!component)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    UA_PubSubComponentEnumType componentType = *((UA_PubSubComponentEnumType*) component);
+    if ((componentType == UA_PUBSUB_COMPONENT_DATASETREADER) && (eMonitoringType == eMessageReceiveTimeout)) {
+        /* start custom monitoring/timer here: e.g. Linux timer_settime */
+        /* use a timed callback if possible -> one MessageReceiveTimeout notification is enough */
+        UA_UInt64 interval = (UA_UInt64)(reader->config.messageReceiveTimeout * UA_DATETIME_MSEC);
+        ret = UA_Timer_addTimedCallback(&server->timer, (UA_ApplicationCallback) reader->msgRcvTimeoutTimerCallback, 
+            server, reader, UA_DateTime_nowMonotonic() + (UA_DateTime) interval, &(reader->msgRcvTimeoutTimerId));
+    } else {
+        ret = UA_STATUSCODE_BADNOTSUPPORTED;
+    }
+    return ret;
+}
+
+UA_StatusCode
+UA_PubSubComponent_stopMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType) {
+    if ((!server) || (!component)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    UA_PubSubComponentEnumType componentType = *((UA_PubSubComponentEnumType*) component);
+    if ((componentType == UA_PUBSUB_COMPONENT_DATASETREADER) && (eMonitoringType == eMessageReceiveTimeout)) {
+        /* stop custom monitoring/timer here: e.g. Linux timer_settime(0) */
+        UA_Timer_removeCallback(&server->timer, reader->msgRcvTimeoutTimerId);
+    } else {
+        ret = UA_STATUSCODE_BADNOTSUPPORTED;
+    }
+    return ret;
+}
+
+UA_StatusCode
+UA_PubSubComponent_updateMonitoringInterval(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType)
+{
+    if ((!server) || (!component)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    UA_PubSubComponentEnumType componentType = *((UA_PubSubComponentEnumType*) component);
+    if ((componentType == UA_PUBSUB_COMPONENT_DATASETREADER) && (eMonitoringType == eMessageReceiveTimeout)) {
+        /* change interval of custom monitoring/timer here: e.g. Linux timer_settime */
+        ret = UA_Timer_changeRepeatedCallbackInterval(&server->timer, reader->msgRcvTimeoutTimerId, 
+                reader->config.messageReceiveTimeout);
+    } else {
+        ret = UA_STATUSCODE_BADNOTSUPPORTED;
+    }
+    return ret;
+}
+
+UA_StatusCode
+UA_PubSubComponent_deleteMonitoring(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType) {
+    if ((!server) || (!component)) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    UA_StatusCode ret = UA_STATUSCODE_GOOD;
+    UA_PubSubComponentEnumType componentType = *((UA_PubSubComponentEnumType*) component);
+    if ((componentType == UA_PUBSUB_COMPONENT_DATASETREADER) && (eMonitoringType == eMessageReceiveTimeout)) {
+        /* delete custom monitoring/timer here: e.g. Linux timer_delete */
+    }
+    return ret;
+}
+
+#endif /* UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND */
 
 static int
 run(UA_String *transportProfile, UA_NetworkAddressUrlDataType *networkAddressUrl) {
@@ -279,9 +374,9 @@ run(UA_String *transportProfile, UA_NetworkAddressUrlDataType *networkAddressUrl
     config->pubsubTransportLayersSize++;
 #endif
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
     /* provide a callback to get notifications of specific PubSub state changes or timeouts (e.g. subscriber MessageReceiveTimeout) */
-    config->pubsubConfiguration.pubsubStateChangeCallback = PubsubStateChangeCallback;
+    config->pubsubConfiguration.pubsubStateChangeCallback = pubsubStateChangeCallback;
 #endif
 
     /* API calls */

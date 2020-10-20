@@ -277,12 +277,12 @@ mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP_XDP)
 option(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING
         "Use a custom implementation for the publish callback handling" OFF)
 mark_as_advanced(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING)
-option(UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
-       "Enable timeout handling of PubSub components (e.g. MessageReceiveTimeout)" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_TIMEOUT_HANDLING)
-option(UA_ENABLE_PUBSUB_TIMEOUT_CUSTOM_HANDLING
-       "Use a custom timer implementation for the timeout handling of PubSub components" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_TIMEOUT_CUSTOM_HANDLING)
+option(UA_ENABLE_PUBSUB_MONITORING
+       "Enable monitoring of PubSub components (e.g. MessageReceiveTimeout)" OFF)
+mark_as_advanced(UA_ENABLE_PUBSUB_MONITORING)
+option(UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND
+       "Use a custom monitoring/timer implementation" OFF)
+mark_as_advanced(UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND)
 option(UA_ENABLE_PUBSUB_ETH_UADP_ETF "Use ETF implementation for the ETH_UADP publish" OFF)
 mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP_ETF)
 
@@ -325,15 +325,15 @@ if(UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING)
     endif()
 endif()
 
-if(UA_ENABLE_PUBSUB_TIMEOUT_HANDLING)
+if(UA_ENABLE_PUBSUB_MONITORING)
     if(NOT UA_ENABLE_PUBSUB)
-        message(FATAL_ERROR "PubSub timeout handling cannot be used with PubSub function disabled")
+        message(FATAL_ERROR "PubSub monitoring cannot be used with PubSub function disabled")
     endif()
 endif()
 
-if(UA_ENABLE_PUBSUB_TIMEOUT_CUSTOM_HANDLING)
-    if(NOT UA_ENABLE_PUBSUB_TIMEOUT_HANDLING)
-        message(FATAL_ERROR "Custom PubSub timeout handling cannot be used without option 'UA_ENABLE_PUBSUB_TIMEOUT_HANDLING'")
+if(UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND)
+    if(NOT UA_ENABLE_PUBSUB_MONITORING)
+        message(FATAL_ERROR "Custom PubSub monoitoring cannot be used without option 'UA_ENABLE_PUBSUB_MONITORING'")
     endif()
 endif()
 

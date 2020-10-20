@@ -117,14 +117,13 @@ _UA_BEGIN_DECLS
  * **UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING**
  *  Enable the OPC UA PubSub support with custom callback implementation for Publisher and Subscriber. The option will provide flexibility to use the user defined callback mechanism for sending
  *  packets in Publisher and receiving packets in the Subscriber. Disabled by default.
- * **UA_ENABLE_PUBSUB_TIMEOUT_HANDLING**
- *  Enable the experimental PubSub timeout handling. This feature provides the MessageReceiveTimeout check of a DataSetReader and can be extended to 
- *  check other PubSub timeouts as well. It uses the internal server callback implementation. An application can check for PubSub state changes and timeouts 
- *  by providing a pubsubStateChangeCallback() at the server configuration (UA_PubSubConfiguration).
+ * **UA_ENABLE_PUBSUB_MONITORING**
+ *  Enable the experimental PubSub monitoring. This feature provides a basic framework to implement monitoring/timeout checks for PubSub components. 
+ *  Initially the MessageReceiveTimeout check of a DataSetReader is provided. It uses the internal server callback implementation.
  *  Disabled by default.
- * **UA_ENABLE_PUBSUB_TIMEOUT_CUSTOM_HANDLING**
- *  Use a custom timer implementation for Publisher and Subscriber timeouts. 
- *  This options enables realtime applications to link a custom timer implementation for PubSub timeout handling, instead of using the internal server callback mechanism.
+ * **UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND**
+ *  Use a custom monitoring/timer backend.
+ *  This options enables realtime applications to link a custom implementation for PubSub monitoring/timeout handling, instead of using the internal server callback mechanism.
  *  Disabled by default.
  * **UA_ENABLE_PUBSUB_ETH_UADP**
  *  Enable the OPC UA Ethernet PubSub support to transport UADP NetworkMessages as payload of Ethernet II frame without IP or UDP headers. This option will include Publish and Subscribe based on

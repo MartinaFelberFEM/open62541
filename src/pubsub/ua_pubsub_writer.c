@@ -1196,6 +1196,11 @@ UA_WriterGroup_setPubSubState(UA_Server *server, UA_PubSubState state, UA_Writer
                                    "Received unknown PubSub state!");
             }
             writerGroup->state = UA_PUBSUBSTATE_ERROR;
+            /* TODO: example usage of pubsubStateChangeCallback -> inform application about error state, reason param necessary */
+            UA_ServerConfig *pConfig = UA_Server_getConfig(server);
+            if (pConfig->pubsubConfiguration.pubsubStateChangeCallback != 0) {
+                pConfig->pubsubConfiguration.pubsubStateChangeCallback(&writerGroup->identifier, UA_PUBSUBSTATE_ERROR, UA_STATUSCODE_BADINTERNALERROR);
+            }
             break;
         default:
             UA_LOG_WARNING(&server->config.logger, UA_LOGCATEGORY_SERVER,

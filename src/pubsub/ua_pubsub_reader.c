@@ -961,9 +961,9 @@ UA_Server_addDataSetReader(UA_Server *server, UA_NodeId readerGroupIdentifier,
         UA_NodeId_copy(&newDataSetReader->identifier, readerIdentifier);
     }
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
     /* create message receive timeout timer */
-    UA_StatusCode retVal = UA_PubSubComponent_createTimer(server, newDataSetReader, UA_Server_DataSetReader_handleMessageReceiveTimeout);
+    UA_StatusCode retVal = UA_PubSubComponent_createMonitoring(server, newDataSetReader, eMessageReceiveTimeout, UA_DataSetReader_handleMessageReceiveTimeout);
     if (retVal != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
             "Add DataSetReader failed. Create message receive timeout timer failed.");
@@ -972,7 +972,7 @@ UA_Server_addDataSetReader(UA_Server *server, UA_NodeId readerGroupIdentifier,
         newDataSetReader = 0;
         return retVal;
     }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
     /* Add the new reader to the group */
     LIST_INSERT_HEAD(&readerGroup->readers, newDataSetReader, listEntry);
@@ -1003,24 +1003,24 @@ UA_Server_removeDataSetReader(UA_Server *server, UA_NodeId readerIdentifier) {
     removeDataSetReaderRepresentation(server, dataSetReader);
 #endif
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
     /* stop and remove message receive timeout timer */
     retVal = UA_STATUSCODE_GOOD;
     if (dataSetReader->msgRcvTimeoutTimerRunning == UA_TRUE) {
-        retVal = UA_PubSubComponent_stopTimer(server, dataSetReader);
+        retVal = UA_PubSubComponent_stopMonitoring(server, dataSetReader, eMessageReceiveTimeout);
         if (retVal != UA_STATUSCODE_GOOD) {
             UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
                 "Remove DataSetReader failed. Stop message receive timeout timer of DataSetReader "
                     "'%.*s' failed.", (int) dataSetReader->config.name.length, dataSetReader->config.name.data);
         }
     }
-    retVal |= UA_PubSubComponent_deleteTimer(server, dataSetReader);
+    retVal |= UA_PubSubComponent_deleteMonitoring(server, dataSetReader, eMessageReceiveTimeout);
     if (retVal != UA_STATUSCODE_GOOD) {
         UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
             "Remove DataSetReader failed. Delete message receive timeout timer of DataSetReader "
                 "'%.*s' failed.", (int) dataSetReader->config.name.length, dataSetReader->config.name.data);
     }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
     UA_DataSetReader_clear(server, dataSetReader);
     return retVal;
@@ -1086,16 +1086,16 @@ UA_Server_DataSetReader_updateConfig(UA_Server *server, UA_NodeId dataSetReaderI
     }
     UA_StatusCode retVal = UA_STATUSCODE_GOOD;
     if (currentDataSetReader->config.messageReceiveTimeout != config->messageReceiveTimeout) {
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
         /* update message receive timeout timer interval */
         currentDataSetReader->config.messageReceiveTimeout = config->messageReceiveTimeout;
-        retVal = UA_PubSubComponent_updateTimerInterval(server, 
-            currentDataSetReader);
+        retVal = UA_PubSubComponent_updateMonitoringInterval(server, 
+            currentDataSetReader, eMessageReceiveTimeout);
         if (retVal != UA_STATUSCODE_GOOD) {
             UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
                 "Update DataSetReader message receive timeout timer failed.");
         }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
     }
     return retVal;
 }
@@ -1197,10 +1197,10 @@ UA_DataSetReader_setPubSubState(UA_Server *server, UA_PubSubState state, UA_Data
                     dataSetReader->state = UA_PUBSUBSTATE_DISABLED;
                     break;
                 case UA_PUBSUBSTATE_OPERATIONAL:
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
                     /* stop MessageReceiveTimeout timer */
                     if (dataSetReader->msgRcvTimeoutTimerRunning == UA_TRUE) {
-                        ret = UA_PubSubComponent_stopTimer(server, dataSetReader);
+                        ret = UA_PubSubComponent_stopMonitoring(server, dataSetReader, eMessageReceiveTimeout);
                         if (ret == UA_STATUSCODE_GOOD) {
                             dataSetReader->msgRcvTimeoutTimerRunning = UA_FALSE;
                         } else {
@@ -1209,7 +1209,7 @@ UA_DataSetReader_setPubSubState(UA_Server *server, UA_PubSubState state, UA_Data
                             "'%.*s' failed.", (int) dataSetReader->config.name.length, dataSetReader->config.name.data);
                         }
                     }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
                     if (ret == UA_STATUSCODE_GOOD) {
                         dataSetReader->state = UA_PUBSUBSTATE_DISABLED;
                     }
@@ -1518,14 +1518,14 @@ UA_Server_DataSetReader_process(UA_Server *server, UA_DataSetReader *dataSetRead
 
     UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER, "DataSetReader '%.*s': received a network message", 
         (int) dataSetReader->config.name.length, dataSetReader->config.name.data);
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
     /* if previous reader state was error (because we haven't received messages and ran into timeout) we should set the state back to operational */
     if (dataSetReader->state != UA_PUBSUBSTATE_OPERATIONAL) {
         UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_OPERATIONAL, dataSetReader);
     }
     if (dataSetReader->msgRcvTimeoutTimerRunning == UA_TRUE) {
         /* stop message receive timeout timer */
-        if (UA_PubSubComponent_stopTimer(server, dataSetReader) == UA_STATUSCODE_GOOD) {
+        if (UA_PubSubComponent_stopMonitoring(server, dataSetReader, eMessageReceiveTimeout) == UA_STATUSCODE_GOOD) {
             dataSetReader->msgRcvTimeoutTimerRunning = UA_FALSE;
         } else {
             UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "DataSetReader '%.*s': stop receive timeout timer failed",
@@ -1534,7 +1534,7 @@ UA_Server_DataSetReader_process(UA_Server *server, UA_DataSetReader *dataSetRead
         }
     }
     /* start message receive timeout timer */
-    if (UA_PubSubComponent_startTimer(server, dataSetReader) == UA_STATUSCODE_GOOD) {
+    if (UA_PubSubComponent_startMonitoring(server, dataSetReader, eMessageReceiveTimeout) == UA_STATUSCODE_GOOD) {
         UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER, "Info: DataSetReader '%.*s': start receive timeout timer",
             (int) dataSetReader->config.name.length, dataSetReader->config.name.data);
         dataSetReader->msgRcvTimeoutTimerRunning = UA_TRUE;
@@ -1543,13 +1543,13 @@ UA_Server_DataSetReader_process(UA_Server *server, UA_DataSetReader *dataSetRead
                         "Starting Message Receive Timeout timer failed.");
         UA_DataSetReader_setPubSubState(server, UA_PUBSUBSTATE_ERROR, dataSetReader);
     }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 }
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
 /* Timeout callback for DataSetReader MessageReceiveTimeout handling */
 void
-UA_Server_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dataSetReader) {
+UA_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dataSetReader) {
     if ((!server) || (!dataSetReader)) {
         UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER,
             "UA_DataSetReader_handleMessageReceiveTimeout(): null pointer param");
@@ -1561,7 +1561,7 @@ UA_Server_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dat
             "UA_DataSetReader_handleMessageReceiveTimeout(): input param is not of type DataSetReader");
         return;
     }
-    UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER, "UA_Server_DataSetReader_handleMessageReceiveTimeout(): "
+    UA_LOG_DEBUG(&server->config.logger, UA_LOGCATEGORY_SERVER, "UA_DataSetReader_handleMessageReceiveTimeout(): "
         "MessageReceiveTimeout occurred at DataSetReader '%.*s': MessageReceiveTimeout = %f Timer Id = %u ", 
             (int) dsReader->config.name.length, dsReader->config.name.data, dsReader->config.messageReceiveTimeout, (UA_UInt32) dsReader->msgRcvTimeoutTimerId);
     
@@ -1575,7 +1575,7 @@ UA_Server_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dat
             "UA_DataSetReader_handleMessageReceiveTimeout(): setting pubsub state failed");
     }
 }
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
 static void
 UA_DataSetReader_clear(UA_Server *server, UA_DataSetReader *dataSetReader) {

@@ -202,12 +202,12 @@ typedef struct UA_DataSetReader {
     /* This flag is 'read only' and is set internally based on the PubSub state. */
     UA_Boolean configurationFrozen;
     UA_NetworkMessageOffsetBuffer bufferedMessage;
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
     /* MessageReceiveTimeout handling */
     UA_ServerCallback msgRcvTimeoutTimerCallback;
     UA_UInt64 msgRcvTimeoutTimerId;
     UA_Boolean msgRcvTimeoutTimerRunning;
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 }UA_DataSetReader;
 
 /* Process Network Message using DataSetReader */
@@ -232,11 +232,11 @@ UA_StatusCode UA_FieldTargetVariable_copy(const UA_FieldTargetVariable *src,
 UA_StatusCode
 UA_DataSetReader_setPubSubState(UA_Server *server, UA_PubSubState state, UA_DataSetReader *dataSetReader);
 
-#ifdef UA_ENABLE_PUBSUB_TIMEOUT_HANDLING
+#ifdef UA_ENABLE_PUBSUB_MONITORING
 /* DataSetReader MessageReceiveTimeout callback for generic PubSub component timeout handling */
 void
-UA_Server_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dataSetReader);
-#endif /* UA_ENABLE_PUBSUB_TIMEOUT_HANDLING */
+UA_DataSetReader_handleMessageReceiveTimeout(UA_Server *server, void *dataSetReader);
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
 /**********************************************/
 /*                ReaderGroup                 */
