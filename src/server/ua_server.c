@@ -23,6 +23,10 @@
 #include "ua_pubsub_ns0.h"
 #endif
 
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+#include "open625641/server_pubsub.h"
+#endif
+
 #ifdef UA_ENABLE_SUBSCRIPTIONS
 #include "ua_subscription.h"
 #endif
@@ -333,6 +337,11 @@ UA_Server_init(UA_Server *server) {
     /* Build PubSub information model */
 #ifdef UA_ENABLE_PUBSUB_INFORMATIONMODEL
     UA_Server_initPubSubNS0(server);
+#endif
+
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+    /* setup default PubSub monitoring callbacks */
+    UA_PubSubManager_setDefaultMonitoringCallbacks(&(server->config.pubsubConfiguration.monitoringInterface));
 #endif
 
     return server;

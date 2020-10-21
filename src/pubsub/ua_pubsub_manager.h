@@ -24,11 +24,6 @@ typedef struct UA_PubSubManager{
     TAILQ_HEAD(UA_ListOfPublishedDataSet, UA_PublishedDataSet) publishedDataSets;
 } UA_PubSubManager;
 
-typedef enum UA_PubSubMonitoringType {
-    eMessageReceiveTimeout
-    // extend as needed
-} UA_PubSubMonitoringType;
-
 void
 UA_PubSubManager_delete(UA_Server *server, UA_PubSubManager *pubSubManager);
 

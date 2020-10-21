@@ -155,6 +155,26 @@ _UA_BEGIN_DECLS
  * Take a look on the PubSub Tutorials for mor details about the API usage.
  */
 
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+
+typedef enum UA_PubSubMonitoringType {
+    eMessageReceiveTimeout
+    // extend as needed
+} UA_PubSubMonitoringType;
+
+/* PubSub monitoring interface */
+// #include <open62541/server.h>
+typedef struct UA_PubSubMonitoringInterface {
+    UA_StatusCode (*createMonitoring)(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType, 
+        void (*UA_ServerCallback)(UA_Server *server, void *data));
+    UA_StatusCode (*startMonitoring)(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
+    UA_StatusCode (*stopMonitoring)(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
+    UA_StatusCode (*updateMonitoringInterval)(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
+    UA_StatusCode (*deleteMonitoring)(UA_Server *server, void *component, UA_PubSubMonitoringType eMonitoringType);
+} UA_PubSubMonitoringInterface;
+
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
+
 /* General PubSub configuration */
 typedef struct UA_PubSubConfiguration {
 
@@ -165,6 +185,10 @@ typedef struct UA_PubSubConfiguration {
     void (*pubsubStateChangeCallback)(UA_NodeId *pubsubComponentId,
                                       UA_PubSubState state,
                                       UA_StatusCode status);
+
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+    UA_PubSubMonitoringInterface monitoringInterface;
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 } UA_PubSubConfiguration;
 
 typedef enum {
@@ -699,6 +723,11 @@ UA_Server_setReaderGroupOperational(UA_Server *server, const UA_NodeId readerGro
 
 UA_StatusCode UA_EXPORT
 UA_Server_setReaderGroupDisabled(UA_Server *server, const UA_NodeId readerGroupId);
+
+#ifdef UA_ENABLE_PUBSUB_MONITORING
+UA_StatusCode UA_EXPORT
+UA_Server_setDefaultMonitoringCallbacks(UA_PubSubMonitoringInterface *interface);
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
 
 #endif /* UA_ENABLE_PUBSUB */
 

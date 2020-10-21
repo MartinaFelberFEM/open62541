@@ -335,6 +335,19 @@ UA_PubSubManager_removeRepeatedPubSubCallback(UA_Server *server, UA_UInt64 callb
 #endif /* UA_ENABLE_PUBSUB_CUSTOM_PUBLISH_HANDLING */
 
 #ifdef UA_ENABLE_PUBSUB_MONITORING
+UA_StatusCode
+UA_PubSubManager_setDefaultMonitoringCallbacks(UA_PubSubMonitoringInterface *interface) {
+    if (interface == 0) {
+        return UA_STATUSCODE_BADINVALIDARGUMENT;
+    }
+    interface->createMonitoring = UA_PubSubComponent_createMonitoring;
+    interface->startMonitoring = UA_PubSubComponent_startMonitoring;
+    interface->stopMonitoring = UA_PubSubComponent_stopMonitoring;
+    interface->updateMonitoringInterval = UA_PubSubComponent_updateMonitoringInterval;
+    interface->deleteMonitoring = UA_PubSubComponent_deleteMonitoring;
+}
+#endif /* UA_ENABLE_PUBSUB_MONITORING */
+
 #ifndef UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND
 
 /*  If UA_ENABLE_PUBSUB_MONITORING_CUSTOM_BACKEND option is enabled, a custom
