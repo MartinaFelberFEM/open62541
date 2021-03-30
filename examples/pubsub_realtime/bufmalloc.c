@@ -10,8 +10,8 @@
 
 /* Every element has the memory layout [length (size_t) | buf (length * sizeof(char)) ... ].
  * The pointer to buf is returned. */
-static char membuf[MALLOCMEMBUFSIZE];
-static size_t pos;
+static UA_THREAD_LOCAL char membuf[MALLOCMEMBUFSIZE];
+static UA_THREAD_LOCAL size_t pos;
 
 static void * membufMalloc(size_t size) {
     if(pos + size + sizeof(size_t) > MALLOCMEMBUFSIZE)
