@@ -1685,4 +1685,15 @@ UA_Server_processNetworkMessage(UA_Server *server, UA_PubSubConnection *connecti
     return UA_STATUSCODE_GOOD;
 }
 
+    if (rv == UA_STATUSCODE_BADNOTFOUND) {
+        UA_LOG_INFO(&server->config.logger, UA_LOGCATEGORY_SERVER,
+                    "PubSub receive. Unknown message received. Will not be processed.");
+    } else {
+        UA_CHECK_STATUS_WARN(rv, (void)0, &server->config.logger, UA_LOGCATEGORY_SERVER,
+                            "Subscribe failed. process network message failed.");
+    }
+        if (rv != UA_STATUSCODE_BADNOTFOUND) {
+            UA_CHECK_STATUS_WARN(rv, return rv, &server->config.logger, UA_LOGCATEGORY_SERVER,
+                                "SubscribeCallback(): receive message failed");
+        }
 #endif /* UA_ENABLE_PUBSUB */
