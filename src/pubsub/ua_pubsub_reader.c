@@ -1974,6 +1974,8 @@ decodeAndProcessNetworkMessageRT(UA_Server *server, UA_ReaderGroup *readerGroup,
 * TODO:
 * Process with the static value source
 */
+    UA_LOG_ERROR(&server->config.logger, UA_LOGCATEGORY_SERVER, "FEM: decodeAndProcessNetworkMessageRT");
+
     size_t paddingBytes = 0;
     UA_DataSetReader *dataSetReader = LIST_FIRST(&readerGroup->readers);
     /* Decode only the necessary offset and update the networkMessage */
